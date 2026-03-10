@@ -6,9 +6,9 @@ from schema import StoreTextReq
 router = APIRouter()
 text_service = TextService()
 
-@router.post("/get")
+@router.get("/{text_id}")
 def get_text(text_id: str):
-    return text_service.get_text(text_id)
+    return text_service.get_text(text_id=text_id)
 
 @router.post("/store")
 def store_text(data: StoreTextReq):

@@ -120,7 +120,7 @@ function ShareTab({ onToast }) {
     }
   };
 
-  const shareUrl = result ? `${window.location.origin}?id=${result.text_data_id}` : "";
+  const shareUrl = result ? `${window.location.origin}?id=${result.text_id}` : "";
 
   if (result) return (
     <div className="result-card">
@@ -151,8 +151,8 @@ function ShareTab({ onToast }) {
       <div className="info-block">
         <label>Text ID</label>
         <div className="copy-row">
-          <span className="mono small truncate">{result.text_data_id}</span>
-          <CopyButton text={result.text_data_id} label="Copy ID" />
+          <span className="mono small truncate">{result.text_id}</span>
+          <CopyButton text={result.text_id} label="Copy ID" />
         </div>
       </div>
     </div>
@@ -231,9 +231,9 @@ function ViewTab({ onToast }) {
         <div className="view-result">
           <div className="view-meta">
             <span>ID: <em className="mono">{id}</em></span>
-            <CopyButton text={result.text} label="Copy text" />
+            <CopyButton text={result.result} label="Copy text" />
           </div>
-          <div className="view-text">{result.text}</div>
+          <div className="view-text">{result.result}</div>
         </div>
       )}
     </div>
