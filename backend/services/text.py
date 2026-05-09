@@ -6,14 +6,53 @@ import models
 from .crypto import encrypt_text_string, decode_text_string
 from database import get_db
 
+
+def parse_uuid(value: str, field_name: str):
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}.")
+
+
 class TextService():
+    def _decode_rows(self, rows):
+        final_text = ""
+        for row in rows:
+            final_text += decode_text_string(row.hashed_text)
+        return final_text
+
+    def _get_active_secret(self, db, secret_key: str):
+        secret_key_id = parse_uuid(secret_key, "secret key")
+        secret = db.query(models.TextSecretKey).filter(
+            models.TextSecretKey.id == secret_key_id
+        ).first()
+
+        if not secret:
+            raise HTTPException(status_code=403, detail="Invalid secret key.")
+
+        if secret.is_deleted:
+            raise HTTPException(status_code=404, detail="Text ID not found. Please enter a valid ID.")
+
+        return secret
+
+    def _get_assoc_by_secret(self, db, secret_key: str):
+        secret_key_id = parse_uuid(secret_key, "secret key")
+        assoc_text_data = db.query(models.AssocTextDataKey).filter(
+            models.AssocTextDataKey.text_secret_key == secret_key_id
+        ).first()
+
+        if not assoc_text_data:
+            raise HTTPException(status_code=404, detail="Text ID not found. Please enter a valid ID.")
+
+        return assoc_text_data
+
     def get_text(self, text_id: str):
         if not text_id:
-            return {
-                "message": "Please enter a valid text ID."
-            }
+            raise HTTPException(status_code=400, detail="Please enter a valid text ID.")
+        text_uuid = parse_uuid(text_id, "text ID")
+
         with get_db() as db:
-            assoc_data = db.query(models.AssocTextDataKey).filter(models.AssocTextDataKey.text_data_id==text_id).first()
+            assoc_data = db.query(models.AssocTextDataKey).filter(models.AssocTextDataKey.text_data_id==text_uuid).first()
             if not assoc_data:
                 raise HTTPException(status_code=404, detail="Text ID not found. Please enter a valid ID.")
             
@@ -30,22 +69,16 @@ class TextService():
             if not rows:
                 raise HTTPException(status_code=404, detail="No data found.")
             
-            final_text = ""
-            for row in rows:
-                decrypted_text = decode_text_string(row.hashed_text)
-                final_text += decrypted_text
-            
             return {
                 "message": "Text fetched successfully.",
-                "result": final_text
+                "result": self._decode_rows(rows)
             }
             
 
     def store_text(self, text: str):
-        if not text:
-            return {
-                "message": "Please enter a valid text."
-            }
+        if not text or not text.strip():
+            raise HTTPException(status_code=400, detail="Please enter a valid text.")
+
         with get_db() as db:
             text_id = uuid.uuid4()
             text_secret_key = uuid.uuid4()
@@ -80,34 +113,37 @@ class TextService():
                 "text_id": str(text_id),
                 "secret_key": str(text_secret_key)
             }
-    
-    def edit_text(self, text: str, secret_key: str):
-        if not text:
-            return {
-                "message": "Please enter valid text."
-            }
 
+    def get_text_by_secret(self, secret_key: str):
         if not secret_key:
-            return {
-                "message": "Please provide a valid secret key."
-            }
+            raise HTTPException(status_code=400, detail="Please provide a valid secret key.")
 
         with get_db() as db:
+            self._get_active_secret(db, secret_key)
+            assoc_text_data = self._get_assoc_by_secret(db, secret_key)
+            rows = db.query(models.TextData).filter(
+                models.TextData.text_id == assoc_text_data.text_data_id
+            ).order_by(models.TextData.text_order).all()
 
-            secret = db.query(models.TextSecretKey).filter(
-                models.TextSecretKey.id == secret_key
-            ).first()
+            if not rows:
+                raise HTTPException(status_code=404, detail="No data found.")
 
-            if not secret:
-                raise HTTPException(status_code=403, detail="Invalid secret key.")
+            return {
+                "message": "Text fetched successfully.",
+                "text_id": str(assoc_text_data.text_data_id),
+                "result": self._decode_rows(rows)
+            }
+    
+    def edit_text(self, text: str, secret_key: str):
+        if not text or not text.strip():
+            raise HTTPException(status_code=400, detail="Please enter valid text.")
 
-            if secret.is_deleted:
-                raise HTTPException(status_code=404, detail="Text ID not found. Please enter a valid ID.")
+        if not secret_key:
+            raise HTTPException(status_code=400, detail="Please provide a valid secret key.")
 
-            assoc_text_data = db.query(models.AssocTextDataKey).filter(
-                models.AssocTextDataKey.text_secret_key == secret_key
-            ).first()
-
+        with get_db() as db:
+            secret = self._get_active_secret(db, secret_key)
+            assoc_text_data = self._get_assoc_by_secret(db, secret_key)
             text_id = assoc_text_data.text_data_id
 
             db.query(models.TextData).filter(
@@ -120,7 +156,6 @@ class TextService():
                 text_chunk = text[i:i+100]
                 encrypted_chunk = encrypt_text_string(text=text_chunk)
                 text_data = models.TextData(
-                    id=text_id,
                     text_id=text_id,
                     text_order=text_order,
                     hashed_text=encrypted_chunk
@@ -136,14 +171,11 @@ class TextService():
             }
     
     def delete_text(self, secret_key: str):
-        with get_db() as db:
-            secret = db.query(models.TextSecretKey).filter(models.TextSecretKey.id == secret_key).first()
+        if not secret_key:
+            raise HTTPException(status_code=400, detail="Please provide a valid secret key.")
 
-            if not secret or secret.is_deleted:
-                raise HTTPException(status_code=404, detail="Secret Key not found. Please enter a valid key.")
-            
-            # text_id = secret.text_data_id
-            # db.query(models.TextData).filter(models.TextData.text_id == text_id).delete()
+        with get_db() as db:
+            secret = self._get_active_secret(db, secret_key)
 
             secret.is_deleted = True
             secret.updated_at = datetime.now(timezone.utc)

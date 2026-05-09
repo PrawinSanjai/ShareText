@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from services.text import TextService
-from schema import StoreTextReq
+from schema import EditTextReq, SecretKeyReq, StoreTextReq
 
 router = APIRouter()
 text_service = TextService()
@@ -14,10 +14,14 @@ def get_text(text_id: str):
 def store_text(data: StoreTextReq):
     return text_service.store_text(data.text)
 
+@router.post("/manage")
+def get_text_by_secret(data: SecretKeyReq):
+    return text_service.get_text_by_secret(data.secret_key)
+
 @router.put("/edit")
-def edit_text(text: str, secret_key: str):
-    return text_service.edit_text(text, secret_key)
+def edit_text(data: EditTextReq):
+    return text_service.edit_text(data.text, data.secret_key)
 
 @router.delete("/delete")
-def delete_text(secret_key: str):
-    return text_service.delete_text(secret_key)
+def delete_text(data: SecretKeyReq):
+    return text_service.delete_text(data.secret_key)

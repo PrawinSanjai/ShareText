@@ -1,7 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './Textie.jsx'
+import Textie from './Textie.jsx'
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode><App /></StrictMode>
+  <StrictMode>
+    <Textie />
+  </StrictMode>,
 )
