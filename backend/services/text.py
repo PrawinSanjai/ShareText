@@ -1,10 +1,13 @@
 import uuid
+import logging
 from datetime import datetime, timezone
 from fastapi import HTTPException
 
 import models
 from .crypto import encrypt_text_string, decode_text_string
 from database import get_db
+
+logger = logging.getLogger("textie.audit")
 
 
 def parse_uuid(value: str, field_name: str):
@@ -59,11 +62,11 @@ class TextService():
             text_secret_key = assoc_data.text_secret_key
             secret_key = db.query(models.TextSecretKey).filter(models.TextSecretKey.id==text_secret_key).first()
 
-            if secret_key.is_deleted:
+            if not secret_key or secret_key.is_deleted:
                 raise HTTPException(status_code=404, detail="Text ID not found. Please enter a valid ID.")
             
             rows = db.query(models.TextData).filter(
-                        models.TextData.text_id == text_id
+                        models.TextData.text_id == text_uuid
                     ).order_by(models.TextData.text_order).all()
             
             if not rows:
@@ -109,6 +112,7 @@ class TextService():
             )
             db.add(assoc_data)
             db.commit()
+            logger.info("text_stored text_id=%s", text_id)
             return {
                 "text_id": str(text_id),
                 "secret_key": str(text_secret_key)
@@ -165,6 +169,7 @@ class TextService():
 
             secret.updated_at = datetime.now(timezone.utc)
             db.commit()
+            logger.info("text_updated text_id=%s", text_id)
 
             return {
                 "message": "Text updated successfully."
@@ -176,9 +181,18 @@ class TextService():
 
         with get_db() as db:
             secret = self._get_active_secret(db, secret_key)
+            assoc_text_data = self._get_assoc_by_secret(db, secret_key)
+            text_id = assoc_text_data.text_data_id
 
+            db.query(models.TextData).filter(
+                models.TextData.text_id == text_id
+            ).delete()
+            db.query(models.AssocTextDataKey).filter(
+                models.AssocTextDataKey.id == assoc_text_data.id
+            ).delete()
             secret.is_deleted = True
             secret.updated_at = datetime.now(timezone.utc)
             db.commit()
+            logger.info("text_deleted text_id=%s", text_id)
 
             return {"message": "Text deleted successfully."}
