@@ -1,3 +1,3 @@
 """
-Namespace for textie backend API routers.
+Namespace for share-text backend API routers.
 """

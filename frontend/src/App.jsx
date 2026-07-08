@@ -1,3 +1,3 @@
-import Textie from "./Textie";
+import ShareText from "./ShareText";
 
-export default Textie;
+export default ShareText;

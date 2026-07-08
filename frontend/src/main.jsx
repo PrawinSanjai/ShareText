@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import Textie from './Textie.jsx'
+import Textie from './ShareText.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

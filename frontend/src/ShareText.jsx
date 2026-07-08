@@ -5,11 +5,11 @@ import {
   readText,
   readTextBySecret,
   updateText,
-} from "./api/textieApi";
-import { CopyButton } from "./components/CopyButton";
-import { Spinner } from "./components/Spinner";
-import { Tabs } from "./components/Tabs";
-import { ToastStack } from "./components/ToastStack";
+} from "./api/shareTextApi.js";
+import { CopyButton } from "./components/CopyButton.jsx";
+import { Spinner } from "./components/Spinner.jsx";
+import { Tabs } from "./components/Tabs.jsx";
+import { ToastStack } from "./components/ToastStack.jsx";
 import {
   EditIcon,
   EyeIcon,
@@ -18,7 +18,7 @@ import {
   SendIcon,
   TrashIcon,
 } from "./components/icons.jsx";
-import { useToasts } from "./hooks/useToasts";
+import { useToasts } from "./hooks/useToasts.js";
 import "./Textie.css";
 
 const TABS = [
@@ -311,7 +311,7 @@ function ManagePanel({ onToast }) {
   );
 }
 
-export default function Textie() {
+export default function ShareText() {
   const initialTextId = useMemo(() => {
     return new URLSearchParams(window.location.search).get("id") || "";
   }, []);

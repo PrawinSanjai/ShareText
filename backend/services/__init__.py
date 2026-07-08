@@ -1,3 +1,3 @@
 """
-Namespace for textie backend services.
+Namespace for share-text backend services.
 """

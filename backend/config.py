@@ -19,7 +19,7 @@ def get_int_env(env_var: str, default: int):
 
 class Configuration:
     DATABASE_URL = get_env("DATABASE_URL", default=None)
-    TEXTIE_API_KEY = get_env("TEXTIE_API_KEY", default=None)
+    SHARE_TEXT_API_KEY = get_env("SHARE_TEXT_API_KEY", default=None)
     CRYPT_SECRET_KEY = get_env("CRYPT_SECRET_KEY", default=None)
     CORS_ALLOW_ORIGINS = get_csv_env(
         "CORS_ALLOW_ORIGINS",

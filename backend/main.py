@@ -21,7 +21,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-api = FastAPI(title="textie-backend", docs_url="/docs")
+api = FastAPI(title="share-text-backend", docs_url="/docs")
 
 api.add_middleware(
     CORSMiddleware,

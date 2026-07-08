@@ -7,7 +7,7 @@ import models
 from .crypto import encrypt_text_string, decode_text_string
 from database import get_db
 
-logger = logging.getLogger("textie.audit")
+logger = logging.getLogger("share_text.audit")
 
 
 def parse_uuid(value: str, field_name: str):
