@@ -25,7 +25,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -153,7 +154,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: #70d6bb;
   box-shadow: 0 0 0 3px rgba(112, 214, 187, 0.12);
 }
@@ -161,6 +163,17 @@ textarea:focus {
 input::placeholder,
 textarea::placeholder {
   color: #64716d;
+}
+
+select {
+  min-height: 46px;
+  padding: 0 14px;
+}
+
+.expiry-note {
+  margin: -8px 0 0;
+  color: #8d9a96;
+  font-size: 0.85rem;
 }
 
 .textarea-shell {

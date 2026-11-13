@@ -17,7 +17,12 @@ NAMING_CONVENTION = {
 }
 metadata = MetaData(naming_convention=NAMING_CONVENTION)
 base = declarative_base(metadata=metadata)
-engine = create_engine(url=config.DATABASE_URL, pool_pre_ping=True, pool_size=10, max_overflow=0)
+engine = create_engine(
+    url=config.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=config.DB_POOL_SIZE,
+    max_overflow=config.DB_MAX_OVERFLOW,
+)
 db_session = sessionmaker(autocommit=False, expire_on_commit=False, autoflush=True, bind=engine)
 
 @contextmanager

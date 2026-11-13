@@ -21,13 +21,16 @@ class Configuration:
     DATABASE_URL = get_env("DATABASE_URL", default=None)
     SHARE_TEXT_API_KEY = get_env("SHARE_TEXT_API_KEY", default=None)
     CRYPT_SECRET_KEY = get_env("CRYPT_SECRET_KEY", default=None)
+    REDIS_URL = get_env("REDIS_URL", default=None)
     CORS_ALLOW_ORIGINS = get_csv_env(
         "CORS_ALLOW_ORIGINS",
         default="http://localhost:5173,http://127.0.0.1:5173",
     )
     RATE_LIMIT_WINDOW_SECONDS = get_int_env("RATE_LIMIT_WINDOW_SECONDS", default=60)
     RATE_LIMIT_MAX_REQUESTS = get_int_env("RATE_LIMIT_MAX_REQUESTS", default=120)
-    MAX_REQUEST_BODY_BYTES = get_int_env("MAX_REQUEST_BODY_BYTES", default=25000)
+    MAX_REQUEST_BODY_BYTES = get_int_env("MAX_REQUEST_BODY_BYTES", default=100000)
+    DB_POOL_SIZE = get_int_env("DB_POOL_SIZE", default=10)
+    DB_MAX_OVERFLOW = get_int_env("DB_MAX_OVERFLOW", default=10)
 
     def validate(self):
         missing = []
@@ -52,5 +55,8 @@ class Configuration:
 
         if self.MAX_REQUEST_BODY_BYTES <= 0:
             raise RuntimeError("MAX_REQUEST_BODY_BYTES must be greater than 0.")
+
+        if self.DB_POOL_SIZE <= 0 or self.DB_MAX_OVERFLOW < 0:
+            raise RuntimeError("DB_POOL_SIZE must be positive and DB_MAX_OVERFLOW cannot be negative.")
 
 BASE_URL = get_env("BASE_URL", default=None)

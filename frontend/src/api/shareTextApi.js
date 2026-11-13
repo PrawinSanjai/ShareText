@@ -18,21 +18,26 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const message = body?.detail || body?.message || "Request failed";
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return body;
 }
 
-export function createText(text) {
+export function createText(text, { ttlHours = 24, maxViews = null, password = "" } = {}) {
   return request("/text/store", {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ttl_hours: ttlHours, max_views: maxViews, password: password || null }),
   });
 }
 
-export function readText(textId) {
-  return request(`/text/${encodeURIComponent(textId)}`);
+export function readText(textId, password = "") {
+  return request(`/text/${encodeURIComponent(textId)}/read`, {
+    method: "POST",
+    body: JSON.stringify({ password: password || null }),
+  });
 }
 
 export function readTextBySecret(secretKey) {

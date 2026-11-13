@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createText,
   deleteText,
@@ -19,7 +19,7 @@ import {
   TrashIcon,
 } from "./components/icons.jsx";
 import { useToasts } from "./hooks/useToasts.js";
-import "./Textie.css";
+import "./ShareText.css";
 
 const TABS = [
   { id: "share", label: "Share", Icon: SendIcon },
@@ -59,6 +59,9 @@ function TextAreaField({ label, value, onChange, placeholder }) {
 function SharePanel({ onToast }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
+  const [ttlHours, setTtlHours] = useState(24);
+  const [maxViews, setMaxViews] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
 
   const shareUrl = useMemo(() => {
@@ -72,8 +75,13 @@ function SharePanel({ onToast }) {
 
     setSubmitting(true);
     try {
-      const data = await createText(text);
+      const data = await createText(text, {
+        ttlHours,
+        maxViews: maxViews ? Number(maxViews) : null,
+        password,
+      });
       setResult(data);
+      setPassword("");
       onToast("Text shared");
     } catch (error) {
       onToast(error.message, "error");
@@ -100,6 +108,9 @@ function SharePanel({ onToast }) {
         </div>
 
         <ResultRow icon={<LinkIcon />} label="Share link" value={shareUrl} />
+        <p className="expiry-note">This link expires {new Date(result.expires_at).toLocaleString()}.</p>
+        {result.max_views && <p className="expiry-note">Available for {result.max_views} successful view{result.max_views === 1 ? "" : "s"}.</p>}
+        {result.password_protected && <p className="expiry-note">Password protection is enabled. Send the password separately.</p>}
         <ResultRow icon={<KeyIcon />} label="Secret key" value={result.secret_key} />
         <ResultRow label="Text ID" value={result.text_id} />
       </section>
@@ -114,6 +125,38 @@ function SharePanel({ onToast }) {
         placeholder="Paste text here"
         value={text}
       />
+
+      <Field label="Delete text after">
+        <select onChange={(event) => setTtlHours(Number(event.target.value))} value={ttlHours}>
+          <option value={1}>1 hour</option>
+          <option value={6}>6 hours</option>
+          <option value={24}>24 hours</option>
+          <option value={72}>3 days</option>
+          <option value={168}>7 days</option>
+        </select>
+      </Field>
+
+      <Field label="Maximum successful views">
+        <select onChange={(event) => setMaxViews(event.target.value)} value={maxViews}>
+          <option value="">Unlimited</option>
+          <option value="1">One time</option>
+          <option value="5">5 views</option>
+          <option value="10">10 views</option>
+          <option value="25">25 views</option>
+        </select>
+      </Field>
+
+      <Field label="Password (optional)">
+        <input
+          autoComplete="new-password"
+          maxLength={128}
+          minLength={8}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="At least 8 characters"
+          type="password"
+          value={password}
+        />
+      </Field>
 
       <button className="primary-button" disabled={isSubmitting || !text.trim()}>
         {isSubmitting ? <Spinner /> : <SendIcon />}
@@ -142,6 +185,10 @@ function ViewPanel({ initialTextId, onToast }) {
   const [textId, setTextId] = useState(initialTextId);
   const [result, setResult] = useState(null);
   const [isLoading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [requiresPassword, setRequiresPassword] = useState(false);
+  const [remainingViews, setRemainingViews] = useState(null);
+  const autoFetchStarted = useRef(false);
 
   async function handleRead(event) {
     event?.preventDefault();
@@ -150,17 +197,25 @@ function ViewPanel({ initialTextId, onToast }) {
     setLoading(true);
     setResult(null);
     try {
-      const data = await readText(textId.trim());
+      const data = await readText(textId.trim(), password);
       setResult(data.result);
+      setRemainingViews(data.remaining_views);
+      setRequiresPassword(false);
+      setPassword("");
     } catch (error) {
-      onToast(error.message, "error");
+      if (error.status === 401) {
+        setRequiresPassword(true);
+      } else {
+        onToast(error.message, "error");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!initialTextId) return;
+    if (!initialTextId || autoFetchStarted.current) return;
+    autoFetchStarted.current = true;
     handleRead();
     // The initial URL value should trigger exactly one automatic fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,11 +233,23 @@ function ViewPanel({ initialTextId, onToast }) {
             value={textId}
           />
         </Field>
-        <button className="primary-button compact" disabled={isLoading || !textId.trim()}>
+        <button className="primary-button compact" disabled={isLoading || !textId.trim() || remainingViews === 0}>
           {isLoading ? <Spinner /> : <EyeIcon />}
-          View
+          {remainingViews === 0 ? "Viewed" : "View"}
         </button>
       </div>
+
+      {requiresPassword && (
+        <Field label="Share password">
+          <input
+            autoComplete="current-password"
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter the password from the sender"
+            type="password"
+            value={password}
+          />
+        </Field>
+      )}
 
       {result && (
         <article className="text-result">
@@ -190,6 +257,12 @@ function ViewPanel({ initialTextId, onToast }) {
             <span className="mono truncate">{textId}</span>
             <CopyButton label="Copy text" text={result} />
           </div>
+          {remainingViews === 0 && (
+            <p className="expiry-note">This was the final allowed view. The stored text has been deleted.</p>
+          )}
+          {remainingViews > 0 && (
+            <p className="expiry-note">{remainingViews} successful view{remainingViews === 1 ? "" : "s"} remaining.</p>
+          )}
           <p>{result}</p>
         </article>
       )}
