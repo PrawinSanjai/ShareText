@@ -1,24 +1,22 @@
-import logging
 import asyncio
+import logging
 from contextlib import asynccontextmanager, suppress
+from datetime import datetime, timezone
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from datetime import datetime
 from redis.asyncio import Redis
 
 from config import Configuration
 from middleware.security import (
+    MetricsMiddleware,
     RateLimitMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
-    MetricsMiddleware,
 )
 from metrics import render_metrics
-from router import (
-    auth,
-    text
-)
+from router import text
 from services.text import TextService
 
 config = Configuration()
@@ -27,20 +25,24 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+logger = logging.getLogger(__name__)
 
-async def expiry_worker():
+
+async def delete_expired_texts():
     service = TextService()
     while True:
         try:
+            # Keep deleting batches until there are no expired shares left.
             while await asyncio.to_thread(service.purge_expired):
                 pass
         except Exception:
-            logging.getLogger(__name__).exception("expiry_cleanup_failed")
+            logger.exception("expiry_cleanup_failed")
         await asyncio.sleep(60)
 
 
 @asynccontextmanager
-async def lifespan(_api):
+async def lifespan(app: FastAPI):
+    redis_client = None
     if config.REDIS_URL:
         redis_client = Redis.from_url(
             config.REDIS_URL,
@@ -53,19 +55,18 @@ async def lifespan(_api):
         except Exception:
             await redis_client.aclose()
             raise
-        _api.state.redis = redis_client
+        app.state.redis = redis_client
     else:
         logging.getLogger(__name__).warning(
             "REDIS_URL is not configured; rate limiting is local to this process"
         )
-    worker = asyncio.create_task(expiry_worker())
+    cleanup_task = asyncio.create_task(delete_expired_texts())
     try:
         yield
     finally:
-        worker.cancel()
+        cleanup_task.cancel()
         with suppress(asyncio.CancelledError):
-            await worker
-        redis_client = getattr(_api.state, "redis", None)
+            await cleanup_task
         if redis_client is not None:
             await redis_client.aclose()
 
@@ -94,22 +95,24 @@ api.add_middleware(MetricsMiddleware)
 
 @api.get("/metrics", include_in_schema=False, response_class=PlainTextResponse)
 def metrics():
-    return PlainTextResponse(render_metrics(), media_type="text/plain; version=0.0.4; charset=utf-8")
+    return PlainTextResponse(
+        render_metrics(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 @api.get("/")
 def home():
     return {
         "result": "success",
-        "message": "Please Go To /Docs"
+        "message": "Please go to /docs.",
     }
 
 @api.get("/health-check")
 def healthcheck():
     return {
         "result": "success",
-        "time": datetime.now()
+        "time": datetime.now(timezone.utc),
     }
 
-# api.include_router(auth.router, tags=["Auth"])
 api.include_router(text.router, prefix="/text", tags=["Text"])

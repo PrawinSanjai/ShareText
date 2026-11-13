@@ -1,20 +1,21 @@
-from services.utils import get_env
 from cryptography.fernet import Fernet
 
+from services.utils import get_env
 
-def get_csv_env(env_var: str, default: str = ""):
+
+def get_csv_env(env_var: str, default: str = "") -> list[str]:
     raw_value = get_env(env_var, default=default) or ""
     return [value.strip() for value in raw_value.split(",") if value.strip()]
 
 
-def get_int_env(env_var: str, default: int):
+def get_int_env(env_var: str, default: int) -> int:
     raw_value = get_env(env_var, default=None)
     if raw_value is None:
         return default
     try:
         return int(raw_value)
     except ValueError:
-        raise ValueError(f"{env_var} must be an integer.")
+            raise ValueError(f"{env_var} must be an integer.") from None
 
 
 class Configuration:
@@ -57,6 +58,9 @@ class Configuration:
             raise RuntimeError("MAX_REQUEST_BODY_BYTES must be greater than 0.")
 
         if self.DB_POOL_SIZE <= 0 or self.DB_MAX_OVERFLOW < 0:
-            raise RuntimeError("DB_POOL_SIZE must be positive and DB_MAX_OVERFLOW cannot be negative.")
+            raise RuntimeError(
+                "DB_POOL_SIZE must be positive and DB_MAX_OVERFLOW cannot be negative."
+            )
+
 
 BASE_URL = get_env("BASE_URL", default=None)

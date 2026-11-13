@@ -1,8 +1,9 @@
 from contextlib import contextmanager
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.schema import MetaData
+
 from config import Configuration
 
 
@@ -25,18 +26,16 @@ engine = create_engine(
 )
 db_session = sessionmaker(autocommit=False, expire_on_commit=False, autoflush=True, bind=engine)
 
+
 @contextmanager
 def get_db():
-    """
-    Create database session for DB operations.
-    """
+    """Open a session, commit on success, and roll back on failure."""
+    db = db_session()
     try:
-        db = db_session()
         yield db
         db.commit()
-    except Exception as e:
-        print(f"Exception occured while connectinng with DB {str(e)}")
+    except Exception:
         db.rollback()
-        raise e
+        raise
     finally:
         db.close()

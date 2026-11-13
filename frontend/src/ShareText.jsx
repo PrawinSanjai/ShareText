@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createText,
   deleteText,
@@ -64,10 +64,9 @@ function SharePanel({ onToast }) {
   const [password, setPassword] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
 
-  const shareUrl = useMemo(() => {
-    if (!result?.text_id) return "";
-    return `${window.location.origin}?id=${result.text_id}`;
-  }, [result]);
+  const shareUrl = result
+    ? `${window.location.origin}?id=${result.text_id}`
+    : "";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -109,8 +108,17 @@ function SharePanel({ onToast }) {
 
         <ResultRow icon={<LinkIcon />} label="Share link" value={shareUrl} />
         <p className="expiry-note">This link expires {new Date(result.expires_at).toLocaleString()}.</p>
-        {result.max_views && <p className="expiry-note">Available for {result.max_views} successful view{result.max_views === 1 ? "" : "s"}.</p>}
-        {result.password_protected && <p className="expiry-note">Password protection is enabled. Send the password separately.</p>}
+        {result.max_views && (
+          <p className="expiry-note">
+            Available for {result.max_views} successful view
+            {result.max_views === 1 ? "" : "s"}.
+          </p>
+        )}
+        {result.password_protected && (
+          <p className="expiry-note">
+            Password protection is enabled. Send the password separately.
+          </p>
+        )}
         <ResultRow icon={<KeyIcon />} label="Secret key" value={result.secret_key} />
         <ResultRow label="Text ID" value={result.text_id} />
       </section>
@@ -127,7 +135,10 @@ function SharePanel({ onToast }) {
       />
 
       <Field label="Delete text after">
-        <select onChange={(event) => setTtlHours(Number(event.target.value))} value={ttlHours}>
+        <select
+          onChange={(event) => setTtlHours(Number(event.target.value))}
+          value={ttlHours}
+        >
           <option value={1}>1 hour</option>
           <option value={6}>6 hours</option>
           <option value={24}>24 hours</option>
@@ -137,7 +148,10 @@ function SharePanel({ onToast }) {
       </Field>
 
       <Field label="Maximum successful views">
-        <select onChange={(event) => setMaxViews(event.target.value)} value={maxViews}>
+        <select
+          onChange={(event) => setMaxViews(event.target.value)}
+          value={maxViews}
+        >
           <option value="">Unlimited</option>
           <option value="1">One time</option>
           <option value="5">5 views</option>
@@ -233,7 +247,10 @@ function ViewPanel({ initialTextId, onToast }) {
             value={textId}
           />
         </Field>
-        <button className="primary-button compact" disabled={isLoading || !textId.trim() || remainingViews === 0}>
+        <button
+          className="primary-button compact"
+          disabled={isLoading || !textId.trim() || remainingViews === 0}
+        >
           {isLoading ? <Spinner /> : <EyeIcon />}
           {remainingViews === 0 ? "Viewed" : "View"}
         </button>
@@ -258,10 +275,14 @@ function ViewPanel({ initialTextId, onToast }) {
             <CopyButton label="Copy text" text={result} />
           </div>
           {remainingViews === 0 && (
-            <p className="expiry-note">This was the final allowed view. The stored text has been deleted.</p>
+            <p className="expiry-note">
+              This was the final allowed view. The stored text has been deleted.
+            </p>
           )}
           {remainingViews > 0 && (
-            <p className="expiry-note">{remainingViews} successful view{remainingViews === 1 ? "" : "s"} remaining.</p>
+            <p className="expiry-note">
+              {remainingViews} successful view{remainingViews === 1 ? "" : "s"} remaining.
+            </p>
           )}
           <p>{result}</p>
         </article>
@@ -385,9 +406,7 @@ function ManagePanel({ onToast }) {
 }
 
 export default function ShareText() {
-  const initialTextId = useMemo(() => {
-    return new URLSearchParams(window.location.search).get("id") || "";
-  }, []);
+  const initialTextId = new URLSearchParams(window.location.search).get("id") || "";
 
   const [activeTab, setActiveTab] = useState(initialTextId ? "view" : "share");
   const { dismissToast, showToast, toasts } = useToasts();

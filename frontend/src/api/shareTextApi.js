@@ -29,7 +29,12 @@ async function request(path, options = {}) {
 export function createText(text, { ttlHours = 24, maxViews = null, password = "" } = {}) {
   return request("/text/store", {
     method: "POST",
-    body: JSON.stringify({ text, ttl_hours: ttlHours, max_views: maxViews, password: password || null }),
+    body: JSON.stringify({
+      text,
+      ttl_hours: ttlHours,
+      max_views: maxViews,
+      password: password || null,
+    }),
   });
 }
 

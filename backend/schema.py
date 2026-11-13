@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 MAX_TEXT_LENGTH = 40000
 
+
 class StoreTextReq(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     ttl_hours: int = Field(default=24, ge=1, le=168)

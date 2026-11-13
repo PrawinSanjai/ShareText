@@ -1,9 +1,9 @@
-from sqlalchemy import Column, UUID, Integer, Text, Boolean, DateTime, Index, CheckConstraint
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from database import base
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Index, Integer, Text, UUID
 
+from database import base
 
 
 class TextData(base):
@@ -18,13 +18,24 @@ class TextData(base):
 class TextSecretKey(base):
     __tablename__ = "text_secret_key"
     __table_args__ = (
-        CheckConstraint("max_views IS NULL OR max_views > 0", name="positive_max_views"),
+        CheckConstraint(
+            "max_views IS NULL OR max_views > 0",
+            name="positive_max_views",
+        ),
         CheckConstraint("view_count >= 0", name="nonnegative_view_count"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
     is_deleted = Column(Boolean, default=True, nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     max_views = Column(Integer, nullable=True)
