@@ -15,7 +15,7 @@ def get_int_env(env_var: str, default: int) -> int:
     try:
         return int(raw_value)
     except ValueError:
-            raise ValueError(f"{env_var} must be an integer.") from None
+        raise ValueError(f"{env_var} must be an integer.") from None
 
 
 class Configuration:

@@ -11,7 +11,7 @@ Share encrypted text with a link that expires automatically. The frontend is a V
 - Each API process runs a cleanup worker. Workers claim expired rows in batches using PostgreSQL `FOR UPDATE SKIP LOCKED`, then delete ciphertext and its association in one transaction. This supports multiple Uvicorn workers and replicas without double processing.
 - Text writes and deletes are transactional. Management operations lock their secret row so concurrent edits/deletes are serialized. The database pool can be sized with `DB_POOL_SIZE` and `DB_MAX_OVERFLOW` per process; set these with the total replica count and PostgreSQL connection budget in mind.
 - With `REDIS_URL` configured, all API processes share an atomic Redis fixed-window rate limit per client IP (120 requests per 60 seconds by default). It uses Redis `TIME`, `INCR`, and `EXPIRE` through the Python client, with no Redis scripts. Fixed windows can allow a burst across a window boundary. Redis is checked at startup; an outage returns `503`. Without Redis, the in-process limiter is used for development. When behind a proxy, configure Uvicorn to trust only that proxy so `request.client.host` identifies the real client safely.
-- `/metrics` exposes simple Prometheus request counts and total response time. Metrics are kept in each process; run one Uvicorn worker per container and scrape each replica directly. Restrict this endpoint to your monitoring network at the ingress.
+- `/metrics` exposes simple Prometheus request counts and total response time. Metrics are kept in each process; run one Uvicorn worker per container and scrape each replica directly. The Nginx example allows local scrapes by default; add your monitoring server's IP to that location if needed.
 - `backend/loadtests/share_load.js` is a small k6 profile that creates and reads one-time shares while also racing multiple clients against one link. Run it against staging with `k6 run -e BASE_URL=https://staging.example.com -e VUS=50 -e DURATION=30s backend/loadtests/share_load.js`. Tune thresholds for your service. Temporarily raise the staging rate limit so it does not mask capacity, and use isolated data.
 - Run `backend/migrations/001_text_expiry.sql` once against an existing database before deploying this version. New database installs should create tables from the SQLAlchemy models and then apply the migration as well.
 - Then run `backend/migrations/002_share_access_controls.sql` once to add view limits and password hashes.
@@ -19,6 +19,15 @@ Share encrypted text with a link that expires automatically. The frontend is a V
 ## Configuration
 
 Required backend environment variables: `DATABASE_URL` and a valid Fernet `CRYPT_SECRET_KEY`. Set `REDIS_URL` (for example `redis://localhost:6379/0`) to enable shared production rate limiting. Other optional settings include `CORS_ALLOW_ORIGINS`, `MAX_REQUEST_BODY_BYTES`, `DB_POOL_SIZE`, and `DB_MAX_OVERFLOW`. The request size default supports the API's 40,000-character text limit.
+
+## Request protections
+
+- **API gateway:** `deploy/nginx.conf` is an optional Nginx reverse proxy. It forwards requests to FastAPI on port 8000, limits request size and connections, and applies an edge rate limit. Nginx listens on port 8080 in this example.
+- **Middleware:** FastAPI middleware handles request-size checks, rate limiting, security headers, metrics, and CORS.
+- **CORS:** `CORS_ALLOW_ORIGINS` must list the website's origin (for local Vite, `http://localhost:5173`). CORS controls which browser sites may call the API; it is not user authentication.
+- **Rate limiting:** Nginx applies a coarse per-IP limit before requests reach FastAPI. FastAPI applies the app limit as well; Redis shares that limit across app replicas when `REDIS_URL` is set.
+
+To use the Nginx config, install it in Nginx's `http` configuration and start Nginx. Run FastAPI with trusted proxy headers enabled, for example `uvicorn main:api --proxy-headers --forwarded-allow-ips=127.0.0.1` when Nginx connects from localhost. Only trust the actual proxy address. Set the frontend's `VITE_API_BASE_URL` to the gateway, such as `http://localhost:8080`, and add the frontend's origin to `CORS_ALLOW_ORIGINS`. For public deployment, terminate HTTPS at Nginx or an upstream load balancer.
 
 ## API
 
